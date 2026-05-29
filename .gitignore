@@ -1,0 +1,16 @@
+# 生成的图片
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# 临时文件
+/tmp/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# API Key（如果有的话）
+.env
+*.key

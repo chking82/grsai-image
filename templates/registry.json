@@ -1,0 +1,170 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-05-29",
+  "templates": [
+    {
+      "id": "illustration",
+      "file": "illustration.md",
+      "name": "插画/配图",
+      "keywords": [
+        "插画",
+        "配图",
+        "艺术图",
+        "画一",
+        "画张",
+        "画个",
+        "绘制",
+        "draw"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "16:9",
+      "priority": 10,
+      "pixelSize": "3840x2160"
+    },
+    {
+      "id": "portrait",
+      "file": "portrait.md",
+      "name": "头像/肖像",
+      "keywords": [
+        "头像",
+        "肖像",
+        "avatar",
+        "profile picture",
+        "个人形象"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "1:1",
+      "priority": 20,
+      "pixelSize": "2880x2880"
+    },
+    {
+      "id": "product",
+      "file": "product.md",
+      "name": "产品图/商品图",
+      "keywords": [
+        "产品",
+        "商品",
+        "展示",
+        "product",
+        "电商",
+        "包装"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "1:1",
+      "priority": 30,
+      "pixelSize": "2880x2880"
+    },
+    {
+      "id": "poster",
+      "file": "poster.md",
+      "name": "海报/Banner",
+      "keywords": [
+        "海报",
+        "banner",
+        "封面",
+        "背景图",
+        "wallpaper",
+        "壁纸",
+        "宣传"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "16:9",
+      "priority": 40,
+      "pixelSize": "3840x2160"
+    },
+    {
+      "id": "ui-element",
+      "file": "ui-element.md",
+      "name": "UI 素材/图标",
+      "keywords": [
+        "图标",
+        "icon",
+        "按钮",
+        "素材",
+        "UI",
+        "界面元素",
+        "emoji",
+        "表情"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "2K",
+      "default_ratio": "1:1",
+      "priority": 50,
+      "pixelSize": "2880x2880"
+    },
+    {
+      "id": "character",
+      "file": "character.md",
+      "name": "角色/吉祥物/IP 形象",
+      "keywords": [
+        "角色",
+        "吉祥物",
+        "IP",
+        "卡通形象",
+        "mascot",
+        "角色设计",
+        "拟人"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "1:1",
+      "priority": 25,
+      "pixelSize": "2880x2880"
+    },
+    {
+      "id": "academic",
+      "file": "academic.md",
+      "name": "论文/技术插图",
+      "keywords": [
+        "论文",
+        "架构图",
+        "流程图",
+        "数据流",
+        "方法论",
+        "系统图",
+        "技术图",
+        "diagram",
+        "workflow",
+        "pipeline"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "16:9",
+      "priority": 15,
+      "pixelSize": "3840x2160"
+    },
+    {
+      "id": "ref-to-template",
+      "file": "ref-to-template.md",
+      "name": "参考图→提示词模板",
+      "keywords": [
+        "提取模板",
+        "提示词模板",
+        "风格模板",
+        "提取风格",
+        "生成模板",
+        "做成模板",
+        "保存风格"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "pixelSize": "3840x2160",
+      "priority": 55
+    },
+    {
+      "id": "generic",
+      "file": "generic.md",
+      "name": "通用",
+      "keywords": [],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "1:1",
+      "priority": 999,
+      "pixelSize": "2880x2880"
+    }
+  ]
+}
