@@ -1,69 +1,51 @@
 # grsai-image
 
-GRS AI 图片生成技能 — 完整的图片生成工作流，包括意图识别、模板匹配、需求收集、提示词审核、参数推荐、图片生成与交付。
-
-通过 [GRS AI API](https://grsai.ai/) 进行图片生成，支持 `nano-banana` 和 `gpt-image-2` 系列模型。
+GRS AI 图片生成技能 — 通过 [GRS AI API](https://grsai.ai/) 进行图片生成，支持 `nano-banana` 和 `gpt-image-2` 系列模型。
 
 ## 特性
 
-- **意图识别 & 模板匹配** — 7 个专业模板 + 通用兜底，自动匹配图片类型
-- **标准化提示词框架** — 8 字段结构（Title/Subtitle/Visual goal/Layout/Main elements/Color & lighting/Style treatment/Avoid）
-- **参考图→提示词模板** — 分析参考图，提取可复用的提示词模板（含占位符）
-- **分辨率×比例换算表** — gpt-image-2-vip 完整像素值对照（15 种比例 × 3 种分辨率）
-- **触发规则** — 四级触发机制，自动识别图片生成意图
-- **审核流程** — 每次生成前必须展示 prompt + 参数，用户确认后才调用 API
-
-## 模板列表
-
-| 模板 | 适用场景 | 默认分辨率 |
-|------|---------|-----------|
-| 插画/配图 | 插画、配图、艺术图 | 4K 16:9 |
-| 论文/技术插图 | 架构图、流程图、方法论图 | 4K 16:9 |
-| 头像/肖像 | 头像、肖像照、社交头像 | 4K 1:1 |
-| 角色/吉祥物/IP | 角色设计、吉祥物、IP 形象 | 4K 1:1 |
-| 产品图/商品图 | 产品展示、电商图、渲染 | 4K 1:1 |
-| 海报/Banner | 海报、封面、壁纸、宣传图 | 4K 16:9 |
-| UI 素材/图标 | 图标、按钮、UI 元素、emoji | 2K 1:1 |
-| 参考图→模板 | 从参考图提取可复用模板 | 4K 16:9 |
-| 通用 | 兜底模板 | 4K 1:1 |
-
-## 目录结构
-
-```
-grsai-image/
-├── SKILL.md                    # 技能说明和完整工作流
-├── generate.sh                 # 快速生成脚本
-├── .gitignore
-├── templates/
-│   ├── registry.json           # 模板注册表
-│   ├── illustration.md         # 插画/配图
-│   ├── portrait.md             # 头像/肖像
-│   ├── product.md              # 产品图/商品图
-│   ├── poster.md               # 海报/Banner
-│   ├── ui-element.md           # UI 素材/图标
-│   ├── character.md            # 角色/吉祥物/IP
-│   ├── academic.md             # 论文/技术插图
-│   ├── ref-to-template.md      # 参考图→提示词模板
-│   └── generic.md              # 通用兜底
-└── scripts/
-    └── template-manager.sh     # 模板管理 CLI
-```
+- **意图识别 & 模板匹配** — 15 个专业模板 + 通用兜底，自动匹配图片类型
+- **Prompt 去重机制** — 同一 prompt + 模型 + 比例，1 小时内自动复用已有结果
+- **自动节点回退** — 国内节点失败时自动切换备用节点
+- **参数换算工具** — `param-converter.sh` 自动将分辨率×比例转换为像素值
+- **Prompt 归档** — 每次生成自动归档，可追溯可复用
 
 ## 快速开始
 
 ### 前置条件
 
-- GRS AI API Key（[获取](https://grsai.ai/zh/dashboard/api-keys)）
-- 国内节点：`https://grsai.dakka.com.cn`
-- 全球节点：`https://grsaiapi.com`
+```bash
+# 设置 GRS AI API Key（写入 ~/.bashrc）
+export GRSAI_API_KEY=sk-your-key
+source ~/.bashrc
+```
 
 ### 生成图片
 
 ```bash
-./generate.sh -p "赛博朋克风格的雨夜城市街景" -m nano-banana-2 -a 16:9 -s 4K
+# 同步生成（小图）
+./scripts/generate.sh -m gpt-image-2-vip -p "赛博朋克风格的雨夜城市街景" -a 2048x2048
+
+# 异步生成（4K 或大图）
+./scripts/generate.sh -m gpt-image-2-vip -p "赛博朋克风格的雨夜城市街景" -a 3840x2160 --async
+
+# 指定输出路径
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048 -o ./output.png
+
+# 参考图生图
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048 --image url_or_base64
 ```
 
-### 管理模板
+### 参数转换
+
+```bash
+# 分辨率 + 比例 → 像素值（gpt-image-2-vip）
+./scripts/param-converter.sh 4K 16:9   → 3840x2160
+./scripts/param-converter.sh 2K 1:1    → 2048x2048
+./scripts/param-converter.sh 2K 3:4    → 1728x2304
+```
+
+### 模板管理
 
 ```bash
 # 列出所有模板
@@ -74,26 +56,73 @@ grsai-image/
 
 # 搜索模板
 ./scripts/template-manager.sh search 插画
-
-# 添加新模板
-./scripts/template-manager.sh add food 美食 美食,食物,菜品 nano-banana-pro 4K 4:3
 ```
 
-## API 参数
+## API 参数说明
 
-### gpt-image-2-vip（推荐）
+### 三个模型系列的参数区别
 
-使用 `imageSize` 传入像素值（不支持 aspectRatio）：
+| 模型系列 | aspectRatio | imageSize | 示例 |
+|---------|-------------|-----------|------|
+| **nano-banana** | 比例如 `"16:9"` | `1K`/`2K`/`4K` | `{"aspectRatio":"16:9","imageSize":"2K"}` |
+| **gpt-image-2** | 比例或 1K 像素值 | 不需要 | `{"aspectRatio":"1024x1024"}` |
+| **gpt-image-2-vip** | 1-4K 像素值 | 不需要 | `{"aspectRatio":"2048x2048"}` |
 
-| 比例 | 1K | 2K | 4K |
-|------|--------|--------|--------|
+### gpt-image-2-vip 像素值速查
+
+| 比例 \ 分辨率 | 1K | 2K | 4K |
+|----------|--------|--------|--------|
 | 1:1 | 1024×1024 | 2048×2048 | 2880×2880 |
 | 16:9 | 1280×720 | 2048×1152 | 3840×2160 |
 | 9:16 | 720×1280 | 1152×2048 | 2160×3840 |
+| 3:4 | 864×1152 | 1728×2304 | 2448×3264 |
+| 4:3 | 1152×864 | 2304×1728 | 3264×2448 |
 
-### nano-banana 系列
+> 完整换算表见 `scripts/param-converter.sh`
 
-使用 `aspectRatio`（如 `"16:9"`）和 `imageSize`（如 `"4K"`）。
+### 像素值约束（gpt-image-2-vip）
+
+- 最大边长 ≤ 3840px
+- 两条边都必须是 16 的倍数
+- 长边/短边 ≤ 3:1
+- 总像素数：655,360 ~ 8,294,400
+
+## 支持的模型
+
+**nano-banana 系列：** `nano-banana`, `nano-banana-fast`, `nano-banana-2`, `nano-banana-2-cl`, `nano-banana-pro`, `nano-banana-pro-vip`
+
+**gpt-image-2 系列：** `gpt-image-2`, `gpt-image-2-vip`
+
+## 目录结构
+
+```
+grsai-image/
+├── SKILL.md                    # 技能说明和完整工作流
+├── README.md                   # 本文件
+├── .gitignore
+├── scripts/
+│   ├── generate.sh             # 主生图脚本（提交、轮询、下载、去重）
+│   ├── param-converter.sh      # 分辨率×比例 → 像素值转换
+│   └── template-manager.sh     # 模板管理 CLI
+├── templates/
+│   ├── registry.json           # 模板注册表
+│   ├── illustration.md         # 插画/配图
+│   ├── portrait.md             # 头像/肖像
+│   ├── product.md              # 产品图/商品图
+│   ├── poster.md               # 海报/Banner
+│   ├── ui-mockup.md            # UI 素材/图标
+│   ├── character.md            # 角色/吉祥物/IP
+│   ├── architecture.md         # 架构图/流程图
+│   ├── branding-packaging.md   # 品牌/包装
+│   ├── editing-workflow.md     # 图片编辑
+│   ├── logo.md                 # Logo 设计
+│   ├── maps.md                 # 地图
+│   ├── ppt-material.md         # PPT 素材
+│   ├── storyboard.md           # 分镜
+│   ├── generic.md              # 通用兜底
+│   └── references/             # 子模板引用（129 个）
+└── .gitignore
+```
 
 ## License
 

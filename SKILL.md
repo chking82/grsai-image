@@ -1,6 +1,6 @@
 ---
 name: grsai-image
-description: GRS AI 图片生成技能 — 完整的图片生成工作流，包括意图识别、模板匹配、需求收集、提示词审核、参数推荐、图片生成与交付
+description: GRS AI 图片生成技能 — 意图识别、模板匹配、需求收集、提示词审核、图片生成与交付
 homepage: https://grsai.ai/
 metadata:
 ---
@@ -13,113 +13,54 @@ metadata:
 
 ## 触发规则
 
-当用户消息中包含以下任意条件时，**激活本技能工作流**：
-
 ### 一级触发（明确图片需求）
-
 用户表达中直接包含图片生成意图，满足以下**任意一条**即激活：
 
 | 触发词/短语 | 示例 |
 |-----------|------|
-| 画/画一/画张/画个/画个… | "帮我画一张图" |
+| 画/画一/画张/画个 | "帮我画一张图" |
 | 生成图/生成图片/生成头像/生成海报 | "生成一张产品图" |
 | 做图/做张图/做图片 | "做张海报" |
 | 文生图 | "文生图：一只猫" |
 | 配图/插图/插画 | "帮我画张插画" |
 | 设计图/设计一个… | "设计一个 logo" |
-| 制作图/制作…图 | "制作一张 banner" |
 
 ### 二级触发（具体图片类型）
+用户提到以下具体类型时，激活并**直接匹配对应模板**：
 
-用户提到以下具体图片类型时，激活并**直接匹配对应模板**：
-
-| 关键词 | 匹配模板 | 示例 |
-|--------|---------|------|
-| 头像/肖像/avatar | portrait | "帮我搞个头像" |
-| 海报/banner/封面 | poster | "做个活动海报" |
-| 产品/商品/展示图 | product | "生成保温杯的产品图" |
-| 图标/icon/按钮/UI | ui-element | "画个设置图标" |
-| 角色/吉祥物/IP/mascot | character | "设计个小龙虾吉祥物" |
-| 架构图/流程图/数据流/方法论/pipeline | academic | "画个系统架构图" |
-| 壁纸/wallpaper/背景图 | poster | "生成一张桌面壁纸" |
-| 表情包/emoji/表情 | ui-element | "做个表情包" |
+| 关键词 | 匹配模板 |
+|--------|---------|
+| 头像/肖像/avatar | portrait |
+| 海报/banner/封面 | poster |
+| 产品/商品/展示图 | product |
+| 图标/icon/按钮/UI | ui-element |
+| 角色/吉祥物/IP/mascot | character |
+| 架构图/流程图/数据流/方法论 | academic |
+| 壁纸/wallpaper/背景图 | poster |
+| 表情包/emoji/表情 | ui-element |
 
 ### 三级触发（隐含图片需求）
-
-以下场景也激活本技能：
-
-| 场景 | 示例 |
-|------|------|
-| PPT 配图需求 | "PPT 需要一张配图" |
-| 封面/封面图需求 | "给我生成个封面" |
-| 缩略图需求 | "做个视频缩略图" |
-| 社交媒体配图 | "做张小红书配图" |
-| 文章配图/题图 | "给文章配张图" |
+PPT 配图、封面图、缩略图、社交媒体配图、文章配图。
 
 ### 排除规则
-
-以下情况**不激活**本技能：
-
-| 场景 | 说明 |
-|------|------|
-| 编辑/修改已有图片 | → 使用 `image` 工具分析，不是生成 |
-| 查看/读取图片内容 | → 使用 `image` 工具，不是生成 |
-| 截图/录屏 | → 不是 AI 生图 |
-| 拍照 | → 不是 AI 生图 |
+编辑/修改已有图片、查看/读取图片内容、截图/录屏、拍照 → **不激活**。
 
 ### 激活后行为
-
 1. 从 `templates/registry.json` 匹配最佳模板
-2. 按模板的需求收集清单引导用户
-3. 生成 prompt → 审核 → API 调用 → 交付
+2. 按模板的需求清单引导用户
+3. 生成 prompt → 审核 → 调用脚本生成 → 交付
 
 ---
 
 ## 工作流总览
 
 ```
-用户："帮我生成一张图"
-  │
-  ▼
-┌─────────────────────────────────┐
-│ 1. 意图识别 & 模板匹配           │
-│    根据用户描述匹配模板类型       │
-└─────────────────────────────────┘
-  │
-  ▼
-┌─────────────────────────────────┐
-│ 2. 需求收集                      │
-│    按模板的需求清单逐项确认       │
-│    （支持一次性提供，也支持多轮）  │
-└─────────────────────────────────┘
-  │
-  ▼
-┌─────────────────────────────────┐
-│ 3. 生成提示词 + 推荐参数         │
-│    使用模板规则生成 prompt        │
-│    自动推荐模型/分辨率/比例       │
-└─────────────────────────────────┘
-  │
-  ▼
-┌─────────────────────────────────┐
-│ 4. 用户审核确认                  │ ⚠️ 必须步骤
-│    展示 prompt + 参数            │
-│    用户可修改后再确认             │
-└─────────────────────────────────┘
-  │ 确认通过
-  ▼
-┌─────────────────────────────────┐
-│ 5. 调用 API 生成图片             │
-│    优先国内节点，同步模式         │
-│    大尺寸自动切换异步 + 轮询      │
-└─────────────────────────────────┘
-  │
-  ▼
-┌─────────────────────────────────┐
-│ 6. 交付结果                      │
-│    下载图片到本地                 │
-│    通过飞书发送到用户             │
-└─────────────────────────────────┘
+1. 意图识别 & 模板匹配
+2. 需求收集（按模板需求清单逐项确认）
+3. 生成提示词 + 推荐参数
+4. 用户审核确认 ⚠️ 必须步骤
+5. 调用 generate.sh 脚本生成图片
+6. 交付结果（下载到本地 → 飞书发送）
 ```
 
 ---
@@ -127,83 +68,66 @@ metadata:
 ## 步骤 1：意图识别 & 模板匹配
 
 读取 `templates/registry.json`，根据用户描述中的关键词匹配模板。
-
-**匹配规则：**
-1. 在 `keywords` 数组中搜索用户描述的关键词
-2. 按 `priority` 排序，数字越小优先级越高
-3. 无匹配时使用 `generic` 兜底模板
-4. 如果用户明确指定了模板类型（如"帮我画个头像"），直接使用对应模板
-
-**匹配逻辑（伪代码）：**
-```
-for each template in registry.templates (sorted by priority):
-    for each keyword in template.keywords:
-        if keyword in user_input:
-            return template
-return generic_template
-```
+- 在 `keywords` 数组中搜索用户描述的关键词
+- 按 `priority` 排序，数字越小优先级越高
+- 无匹配时使用 `generic` 兜底模板
 
 ---
 
 ## 步骤 2：需求收集
 
-根据匹配到的模板，按需求清单逐项收集信息。
+按模板的需求清单逐项收集信息。
 
-### 收集策略
+**收集策略：**
+- 用户一次性提供了所有信息 → 直接提取
+- 用户提供了部分信息 → 确认已有的，询问缺失的
+- 用户只说模糊需求 → 按模板逐项引导
 
-| 场景 | 策略 |
-|------|------|
-| 用户一次性提供了所有信息 | 直接提取，跳过多轮询问 |
-| 用户提供了部分信息 | 确认已提供的，询问缺失的必填项 |
-| 用户只说了模糊需求 | 按模板的需求清单逐项引导 |
-
-### 引导话术（示例）
-
-```
-我来帮你生成一张【插画/配图】。为了生成最合适的图片，我需要了解：
-
-1. 画面主体是什么？（必填）
-2. 想要什么风格？可选：扁平插画、水彩、油画、像素、赛博朋克、手绘、极简、卡通
-3. 希望什么色调？（可选）暖色/冷色/黑白/高饱和/低饱和
-4. 用途是什么？（可选）PPT配图/文章配图/社交媒体
-
-也可以直接告诉我你的想法，我来提取。
-```
-
-### 参考图处理
-
-如果用户提供参考图片：
-1. 使用 `image` 工具分析参考图的风格/构图/色调
-2. 将分析结果作为 prompt 的参考描述
-3. 调用 API 时传入 `images` 参数（图生图模式）
+**参考图处理：**
+1. 用 `image` 工具分析参考图风格/构图/色调
+2. 分析结果写入 prompt
+3. 调用 API 时传 `images` 参数（图生图）
 
 ---
 
 ## 步骤 3：生成提示词 + 推荐参数
 
-### Prompt 生成
+### Prompt 生成规则
+1. 用户中文需求 → 按模板字段提取
+2. 风格关键词替换为英文
+3. 拼接完整英文 prompt
+4. 补充质量关键词（high quality, detailed...）
+5. **中文文字渲染**：gpt-image-2-vip 对中文支持良好，prompt 中直接包含中文标题/标签/短文案，用引号包裹
+6. 用户明确要求含中文文字 → prompt 中原样嵌入，不翻译不替换拼音
 
-按照模板的 "Prompt 生成规则" 生成完整英文 prompt：
+### 参数推荐速查表
 
-1. 将用户输入的中文需求提取到模板的各个字段
-2. 使用模板的 "风格关键词扩展" 表替换风格为英文关键词
-3. 按模板规则拼接完整 prompt
-4. 补充质量关键词（high quality, detailed, professional...）
+| 参数 | nano-banana 系列 | gpt-image-2 | gpt-image-2-vip |
+|------|------------------|-------------|-----------------|
+| aspectRatio | 比例如 `"16:9"` | 比例或 1K 像素值 | **1-4K 像素值**如 `"2048x2048"` |
+| imageSize | `1K`/`2K`/`4K` | 不需要 | 不需要 |
 
-### 参数推荐
+### 分辨率 × 比例 → 像素值换算
 
-| 参数 | 来源 | 说明 |
-|------|------|------|
-| model | 模板 `default_model` | 用户可覆盖 |
-| imageSize | 模板默认 + 用户指定 | 默认 4K，UI 素材默认 2K |
-| aspectRatio | 模板默认 + 用户指定 | 海报 16:9，头像 1:1 |
-| replyType | 自动判断 | ≤2K 用同步，4K 用异步 + 轮询 |
+使用 `scripts/param-converter.sh` 自动转换：
+```bash
+# 用法: ./scripts/param-converter.sh 分辨率 比例
+./scripts/param-converter.sh 4K 16:9   → 3840x2160
+./scripts/param-converter.sh 2K 1:1    → 2048x2048
+./scripts/param-converter.sh 2K 3:4    → 1728x2304
+```
+
+### gpt-image-2-vip 像素值约束
+- 最大边长 ≤ 3840px
+- 两条边都必须是 16 的倍数
+- 长边/短边 ≤ 3:1
+- 总像素数：655,360 ~ 8,294,400
 
 ---
 
 ## 步骤 4：用户审核确认 ⚠️ 必须步骤
 
-**在调用 API 之前，必须展示以下内容并等待用户确认：**
+**调用 API 前必须展示并等待确认：**
 
 ```
 📋 生成确认
@@ -212,111 +136,98 @@ return generic_template
 [英文 prompt]
 
 ⚙️ 参数：
-- 模型：nano-banana-2
-- 分辨率：4K
-- 比例：16:9
+- 模型：gpt-image-2-vip
+- 分辨率：4K / 比例：3:4 → 像素值 2448x3264
 - 模式：异步（预计 2-3 分钟）
 
-确认生成？可以直接回复"确认"或"修改"。
+确认生成？回复"确认"或"修改"。
 ```
 
 **用户反馈处理：**
-- "确认" / "好的" / "生成" → 进入步骤 5
-- "修改" → 询问用户要修改什么，重新生成 prompt 后再确认
-- 具体修改意见 → 按意见更新 prompt 后重新展示确认
+- "确认" / "好的" / "生成" → 进入步骤 4.5（prompt 归档）→ 步骤 5
+- "修改" → 按意见更新后重新确认
+
+---
+
+## 步骤 4.5：Prompt 归档
+
+用户确认后、调用脚本前，先归档 prompt：
+
+```bash
+mkdir -p ./grsai-prompts
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+PROMPT_FILE="./grsai-prompts/${TIMESTAMP}_${TEMPLATE_NAME}_${TOPIC_KEYWORD}.md"
+```
+
+归档文件内容：Time / Template / Model / Resolution / Aspect Ratio / Prompt / User Request
+
+归档目录：`./grsai-prompts/`
 
 ---
 
 ## 步骤 5：调用 API 生成图片
 
-### API 配置
+### 使用 generate.sh 脚本
 
-| 项目 | 值 |
-|------|-----|
+所有 API 调用统一使用 `scripts/generate.sh` 脚本：
+
+```bash
+# 同步生成（小图）
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048
+
+# 异步生成（4K 或大图，推荐）
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 3840x2160 --async
+
+# 指定输出路径
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048 -o ./output.png
+
+# 参考图生图
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048 --image url_or_base64
+
+# 指定备用节点
+./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048 -n https://grsaiapi.com
+```
+
+### 脚本配置
+
+| 配置项 | 值 |
+|--------|-----|
 | 国内节点 | `https://grsai.dakka.com.cn`（优先）|
-| 全球节点 | `https://grsaiapi.com`（备用）|
-| API Key | 从 TOOLS.md 读取（环境变量 `GRSAI_API_KEY`）|
-
-### 调用逻辑
-
-**同步模式（≤2K 或小图）：**
-```bash
-curl -s -X POST "https://grsai.dakka.com.cn/v1/api/generate" \
-  -H "Authorization: Bearer $GRSAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "nano-banana-2",
-    "prompt": "...",
-    "aspectRatio": "16:9",
-    "imageSize": "2K",
-    "replyType": "json"
-  }'
-```
-
-**异步模式（4K 或大图）：**
-```bash
-# 1. 提交任务
-curl -s -X POST "https://grsai.dakka.com.cn/v1/api/generate" \
-  -H "Authorization: Bearer $GRSAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "nano-banana-2",
-    "prompt": "...",
-    "aspectRatio": "16:9",
-    "imageSize": "4K",
-    "replyType": "async"
-  }'
-# 返回: {"id": "14-xxx", "status": "running"}
-
-# 2. 轮询结果（每 15 秒一次，最多 10 次）
-curl -s "https://grsai.dakka.com.cn/v1/api/result?id=14-xxx" \
-  -H "Authorization: Bearer $GRSAI_API_KEY"
-# 返回: {"status": "succeeded", "results": [{"url": "https://..."}]}
-```
+| 备用节点 | `https://grsaiapi.com`（国内失败时回退，不重复生成）|
+| API Key | 自动从 `~/.bashrc` 提取 |
+| curl 超时 | 300s（生图慢）|
+| 输出目录 | `./output/` |
+| 任务注册表 | `./grsai-tasks/`（防止重复提交）|
+| 去重窗口 | 3600s（同一 prompt + 模型 + 比例，1h 内复用已有结果）|
 
 ### 错误处理
 
 | 状态 | 处理 |
 |------|------|
 | `succeeded` | 下载图片，进入步骤 6 |
-| `failed` | 告知用户失败原因，建议重试或修改 prompt |
-| `violation` | 告知用户触发安全策略，建议修改 prompt 中敏感描述 |
-| `running` 超时 | 告知用户仍在生成中，稍后自动检查 |
+| `failed` | 告知用户失败原因，建议重试 |
+| `violation` | 触发安全策略，建议修改 prompt |
+| 超时 | 20 次轮询（5 分钟）后仍未完成 → 提示用户 |
 
 ---
 
 ## 步骤 6：交付结果
 
-### 统一媒体输出路径
+### 统一输出路径
+所有图片保存到 `./output/`
 
-所有生成的图片统一保存到：`/tmp/openclaw/grsai/`
-
-### 文件命名规则
-
-**GRS AI API 不支持 filename 参数**，返回的 URL 包含随机文件名。必须在下载端生成唯一文件名：
-
-```bash
-# 命名格式: {时间戳}_{模板类型}_{序号}.png
-# 示例: 20260529_124500_illustration_01.png
-
-mkdir -p /tmp/openclaw/grsai
-FILENAME="/tmp/openclaw/grsai/$(date +%Y%m%d_%H%M%S)_${TEMPLATE_NAME}_${SEQ_NUM}.png"
-curl -sL "$IMAGE_URL" -o "$FILENAME"
-```
-
-**批量生成时**：每次下载前递增序号，避免覆盖。
+### 文件命名
+自动命名格式：`{时间戳}_{模型}_{序号}.png`
+- 示例：`20260529_124500_gpt-image-2-vip_01.png`
 
 ### 交付流程
-
-1. 下载图片到 `/tmp/openclaw/grsai/`
-2. 通过 `message` 工具（action=send）将图片发送到飞书对话
+1. 脚本已自动下载图片到 `./output/`
+2. 用 `message` 工具（action=send）+ attachments 发送到飞书
 3. 告知用户生成完成
 
 ---
 
-## API 参考
-
-### 端点
+## API 端点参考
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -324,132 +235,26 @@ curl -sL "$IMAGE_URL" -o "$FILENAME"
 | GET | `/v1/api/result?id={task_id}` | 查询异步结果 |
 | POST | `/v1/api/edit` | 图片编辑 |
 
-### 生成参数
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| model | string | ✅ | 模型名称 |
-| prompt | string | ✅ | 提示词 |
-| images | array | ❌ | 参考图，base64 或 URL。API 原生支持图生图功能，传入参考图即可生成风格一致的图片 |
-| aspectRatio | string | ❌ | **nano-banana 系列**：支持比例如 `"16:9"`、`"1:1"`。**gpt-image-2**：支持比例或 1K 像素值如 `"1024x1024"`。**gpt-image-2-vip**：不支持比例，必须用像素值 |
-| imageSize | string | ❌ | **nano-banana 系列**：`1K` / `2K` / `4K`。**gpt-image-2-vip**：像素值如 `"2880x2880"`、`"3840x2160"` |
-| replyType | string | ❌ | json（同步）/ async（异步）|
-
-### ⚠️ gpt-image-2-vip 重要注意事项
-
-**不支持 aspectRatio 比例参数**：`gpt-image-2-vip` 不接受比例值（如 `"16:9"`、`"1:1"`），必须传入像素值。
-
-**必须使用 imageSize 像素值**：根据**分辨率**和**比例**两个参数换算出像素值，传入 `imageSize` 字段。
-
-#### 分辨率 × 比例 换算表（gpt-image-2-vip）
-
-| 比例 \ 分辨率 | 1K | 2K | 4K |
-|----------|--------|--------|--------|
-| **1:1** | 1024×1024 | 2048×2048 | 2880×2880 |
-| **16:9** | 1280×720 | 2048×1152 | 3840×2160 |
-| **9:16** | 720×1280 | 1152×2048 | 2160×3840 |
-| **4:3** | 1152×864 | 2304×1728 | 3264×2448 |
-| **3:4** | 864×1152 | 1728×2304 | 2448×3264 |
-| **3:2** | 1536×1024 | 2048×1360 | 3504×2336 |
-| **2:3** | 1024×1536 | 1360×2048 | 2336×3504 |
-| **5:4** | 1120×896 | 2240×1792 | 3200×2560 |
-| **4:5** | 896×1120 | 1792×2240 | 2560×3200 |
-| **21:9** | 1456×624 | 2912×1248 | 3840×1648 |
-| **9:21** | 624×1456 | 1248×2912 | 1648×3840 |
-| **2:1** | 1536×768 | 3072×1536 | 3840×1920 |
-| **1:2** | 768×1536 | 1536×3072 | 1920×3840 |
-| **1:3** | 688×2048 | 1280×3840 | — |
-| **3:1** | 2048×688 | 3840×1280 | — |
-
-#### 像素值约束（gpt-image-2-vip）
-
-- 最大边长 ≤ 3840px
-- 两条边都必须是 16 的倍数
-- 长边/短边 ≤ 3:1
-- 总像素数：655,360 ~ 8,294,400
-
-#### 调用逻辑
-
-```javascript
-// 用户输入: resolution = "4K", aspectRatio = "16:9"
-// 换算: imageSize = "3840x2160"
-
-const PIXEL_MAP = {
-  "1:1":  { "1K": "1024x1024",  "2K": "2048x2048", "4K": "2880x2880" },
-  "16:9": { "1K": "1280x720",   "2K": "2048x1152", "4K": "3840x2160" },
-  "9:16": { "1K": "720x1280",   "2K": "1152x2048", "4K": "2160x3840" },
-  "4:3":  { "1K": "1152x864",   "2K": "2304x1728", "4K": "3264x2448" },
-  "3:4":  { "1K": "864x1152",   "2K": "1728x2304", "4K": "2448x3264" },
-  "3:2":  { "1K": "1536x1024",  "2K": "2048x1360", "4K": "3504x2336" },
-  "2:3":  { "1K": "1024x1536",  "2K": "1360x2048", "4K": "2336x3504" },
-  "5:4":  { "1K": "1120x896",   "2K": "2240x1792", "4K": "3200x2560" },
-  "4:5":  { "1K": "896x1120",   "2K": "1792x2240", "4K": "2560x3200" },
-  "21:9": { "1K": "1456x624",   "2K": "2912x1248", "4K": "3840x1648" },
-  "9:21": { "1K": "624x1456",   "2K": "1248x2912", "4K": "1648x3840" },
-  "2:1":  { "1K": "1536x768",   "2K": "3072x1536", "4K": "3840x1920" },
-  "1:2":  { "1K": "768x1536",   "2K": "1536x3072", "4K": "1920x3840" },
-  "1:3":  { "1K": "688x2048",   "2K": "1280x3840", "4K": null },
-  "3:1":  { "1K": "2048x688",   "2K": "3840x1280", "4K": null },
-};
-
-function toImageSize(resolution, aspectRatio) {
-  return PIXEL_MAP[aspectRatio]?.[resolution] || "2048x2048"; // 默认 2K 1:1
-}
-```
-
-**正确调用示例（gpt-image-2-vip）：**
-```json
-{
-  "model": "gpt-image-2-vip",
-  "prompt": "...",
-  "imageSize": "3840x2160",
-  "replyType": "async"
-}
-```
-
-**错误调用示例（会报错失败）：**
-```json
-{
-  "model": "gpt-image-2-vip",
-  "prompt": "...",
-  "aspectRatio": "16:9",  ← 不支持！
-  "imageSize": "4K"       ← 必须用像素值！
-}
-```
-
-**nano-banana 系列**支持 `aspectRatio`（如 `"16:9"`）和 `imageSize`（如 `"4K"`），用法不同。
-
 ### 支持的模型
 
-**nano-banana 系列：**
-- `nano-banana` — 标准版
-- `nano-banana-fast` — 快速版
-- `nano-banana-2` — 第二代（默认推荐）
-- `nano-banana-2-cl` / `nano-banana-2-4k-cl` — 带控制层
-- `nano-banana-pro` — 专业版（人物/产品推荐）
-- `nano-banana-pro-cl` — 专业版带控制层
-- `nano-banana-pro-vip` / `nano-banana-pro-4k-vip` — VIP 版
+**nano-banana 系列：** `nano-banana`, `nano-banana-fast`, `nano-banana-2`, `nano-banana-2-cl`, `nano-banana-pro`, `nano-banana-pro-vip`
+- 参数：`aspectRatio`（比例）+ `imageSize`（1K/2K/4K）
 
-nano-banana-2 系列额外支持比例：`1:4`、`4:1`、`1:8`、`8:1`
-
-nano-banana 系列支持的参数：`aspectRatio`（比例如 `"16:9"`）、`imageSize`（`1K` / `2K` / `4K`）
-
-**gpt-image-2 系列：**
-- `gpt-image-2` — 标准版，支持比例（如 `"16:9"`）或 1K 像素值（如 `"1024x1024"`）
-- `gpt-image-2-vip` — VIP 版，仅支持像素值（如 `"2880x2880"`、`"3840x2160"`），不支持比例
+**gpt-image-2 系列：** `gpt-image-2`, `gpt-image-2-vip`
+- `gpt-image-2`：`aspectRatio` 可传比例或 1K 像素值
+- `gpt-image-2-vip`：`aspectRatio` 传 1-4K 像素值，不支持比例，不需要 `imageSize`
 
 ---
 
 ## 模板管理
 
 ### 目录结构
-
 ```
 templates/
-├── registry.json        # 模板注册表（索引）
+├── registry.json        # 模板注册表
 ├── illustration.md      # 插画/配图
 ├── portrait.md          # 头像/肖像
-├── product.md           # 产品图/商品图
+├── product.md           # 产品图
 ├── poster.md            # 海报/Banner
 ├── ui-element.md        # UI 素材/图标
 ├── character.md         # 角色/吉祥物/IP
@@ -457,7 +262,6 @@ templates/
 ```
 
 ### 管理命令
-
 ```bash
 # 列出所有模板
 ./scripts/template-manager.sh list
@@ -469,29 +273,22 @@ templates/
 ./scripts/template-manager.sh search 插画
 
 # 添加新模板
-./scripts/template-manager.sh add food 美食 美食,食物,菜品,餐饮 nano-banana-pro 4K 4:3
+./scripts/template-manager.sh add food 美食 美食,食物,菜品 nano-banana-pro 4K 4:3
 
 # 删除模板
 ./scripts/template-manager.sh remove food
 ```
 
-### 新增模板流程
-
-1. 在 `templates/` 下创建 `{id}.md`
-2. 按照现有模板格式编写（适用场景 + 需求清单 + Prompt 规则 + 示例）
-3. 在 `registry.json` 中添加注册条目
-4. 测试匹配和生成是否正常
-
 ---
 
 ## 最佳实践
 
-1. **Prompt 用英文** — 英文提示词在大多数模型上效果更好
+1. **Prompt 用英文** — 英文提示词效果更好
 2. **具体优于模糊** — "一只橘猫坐在窗台上看夕阳" > "一只猫"
-3. **参考图是好帮手** — 有参考图时用图生图，效果更好
-4. **4K 需要耐心** — 4K 生成需要 2-3 分钟，使用异步模式
-5. **审核不可跳过** — 每次生成前必须让用户确认 prompt 和参数
-6. **默认国内节点** — 优先使用 `https://grsai.dakka.com.cn`，延迟更低
+3. **参考图是好帮手** — 有参考图时用图生图
+4. **4K 需要耐心** — 异步模式，预计 2-3 分钟
+5. **审核不可跳过** — 必须让用户确认 prompt 和参数
+6. **中文文字** — gpt-image-2-vip 对中文渲染支持良好，prompt 直接包含中文
 
 ---
 
@@ -499,8 +296,9 @@ templates/
 
 | 文件 | 说明 |
 |------|------|
-| `SKILL.md` | 本文件，技能说明和工作流 |
-| `templates/registry.json` | 模板注册表 |
-| `templates/*.md` | 各类型模板文件 |
+| `SKILL.md` | 本文件：工作流说明 |
+| `scripts/generate.sh` | 主生图脚本：API 调用、轮询、下载 |
+| `scripts/param-converter.sh` | 参数转换：分辨率+比例 → 像素值 |
 | `scripts/template-manager.sh` | 模板管理脚本 |
-| `generate.sh` | 快速生成脚本（已有）|
+| `templates/registry.json` | 模板注册表 |
+| `templates/*.md` | 各类型模板 |

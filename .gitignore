@@ -3,6 +3,7 @@
 *.jpg
 *.jpeg
 *.webp
+*.gif
 
 # 临时文件
 /tmp/
@@ -11,6 +12,14 @@
 .DS_Store
 Thumbs.db
 
-# API Key（如果有的话）
+# API Key
 .env
 *.key
+
+# 备份文件
+*.bak
+*.old
+
+# 归档目录（本地使用，不提交）
+grsai-prompts/
+grsai-tasks/
