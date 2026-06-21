@@ -130,6 +130,48 @@ PPT 配图、封面图、缩略图、社交媒体配图、文章配图。
 7. **图文结合降密度**（LRN-20260621-001）：信息图/海报类，避免纯文字卡片堆砌。采用「顶部大场景插画（约 40% 高度）+ 每板块小插画 + 精简文字（一句描述+关键数据）」，文字量砍半，留白和呼吸感上来。prompt 里明写 `image-driven design, large illustrations with minimal concise text, not text-heavy cards`。
 8. **敏感题材模型选择**（LRN-20260621-001）：军事/战争/政治敏感历史题材（如对越反击战），**gpt-image-2-vip 会主题级拦截**（连续 violation，脱敏到“纯历史知识图”仍被拦，别死磕）。→ 改用 **nano-banana-2**，实测能稳定出图且中文基本无错字。
 
+### 🧱 6-Block 结构化 Prompt 协议（吸收 awesome-gpt-image-2 原子化思路）
+
+> 所有 prompt 按 6 个原子块拼装，块块可组合、可复用，比一坨自由文本更可控。模板里的 Meta-Prompt 是块内细化，本协议是顶层骨架。
+
+| Block | 作用 | 必填 | 要点 |
+|-------|------|------|------|
+| 1. 主体与任务 subject & task | 画什么、做什么类型 | ✅ | 明确产物类型（海报/UI/信息图…）+ 主体对象 |
+| 2. 构图与布局 composition & layout | 怎么排 | ✅ | 画面分区、视觉流向、主次层级、留白位置 |
+| 3. 风格与材质 visual style & materials | 长什么样 | ✅ | 风格关键词、材质质感、光影、调色 |
+| 4. 文字与标签 text & labels | 写什么字 | ⚠️ | 含中文时**原样嵌入引号包裹**，写死标题/副标题，禁占位符 |
+| 5. 比例与输出 aspect ratio & output | 多大多清 | ✅ | 像素值 + 分辨率 + 用途 |
+| 6. 约束与负面 constraints & negative | 不要什么 | ✅ | 具体负面项（乱码/拼贴/变形/廉价感…） |
+
+**选型构建顺序**（来自 style-library 方法论）：先按"模板类别 → 视觉风格标签 → 场景标签 → 最近案例"匹配，再逐块填充。一个模板明显最强就直接用；多个都行就给 2-3 个选项让用户挑。
+
+### 📦 JSON 进阶模板（推荐 Agent / 批量场景调用）
+
+> 复杂排版、批量系列图、需要精确控制信息结构时，用 JSON 填空式 prompt，比自由文本更稳。生成时把 JSON 作为结构说明连同自然语言一起发给模型。
+
+通用骨架：
+```json
+{
+  "type": "<产物类型，如 Infographic / Poster / UI Screenshot>",
+  "subject": "<主体/主题>",
+  "audience": "<目标受众，可选>",
+  "layout": "<布局描述：分区/网格/视觉流向>",
+  "modules": [
+    {"title": "<板块标题>", "icon": "<图标>", "text": "<一句说明>"}
+  ],
+  "style": {
+    "aesthetic": "<风格>",
+    "colors": "<配色方案>",
+    "lighting": "<光影>",
+    "background": "<背景>"
+  },
+  "text": {"title": "<写死的标题>", "subtitle": "<写死的副标题>"},
+  "constraints": "<比例 + 负面项，如 9:16, no gibberish text, strict layout>"
+}
+```
+- 批量系列图：复用同一 JSON 骨架，只换 `subject` / `modules` / `colors`，保证整套视觉统一。
+- 中文文字一律写进 `text` 块并原样保留，不翻译不拼音。
+
 ### 参数推荐速查表
 
 | 参数 | nano-banana 系列 | gpt-image-2 | gpt-image-2-vip |
@@ -286,7 +328,10 @@ templates/
 ├── portrait.md          # 头像/肖像
 ├── product.md           # 产品图
 ├── poster.md            # 海报/Banner
-├── ui-element.md        # UI 素材/图标
+├── ui-mockup.md         # UI 素材/图标
+├── social-screenshot.md # 社交截图/直播界面 🆕
+├── science-poster.md    # Apple 风极简科普海报 🆕
+├── brand-identity.md    # 品牌身份包/触点系统视觉板 🆕
 ├── character.md         # 角色/吉祥物/IP
 └── generic.md           # 通用兜底
 ```

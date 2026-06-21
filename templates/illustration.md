@@ -73,3 +73,9 @@ Avoid: photorealistic photography, cluttered composition, text overlays, cartoon
 - model: gpt-image-2-vip
 - imageSize: 3840x2160
 
+## ⚠️ 避坑指南
+
+- **锁定笔触**：不限制笔触（厚涂/水彩晕染）时，模型通常给一种毫无灵魂的 AI 默认塑料风，务必写明笔触。
+- **慎用大师名**：提大师名字容易被模型原样照搬代表作构图。建议提取特征（如"梵高的旋转星空笔触"），而不是直接写大师名。
+- **场景要有动词**：叙事性插画最怕画成风景明信片，写明事件（“正在崩塌”“刚点燃火把”）让画面动起来。
+

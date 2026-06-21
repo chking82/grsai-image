@@ -1,6 +1,6 @@
 {
-  "version": "2.1.0",
-  "updated_at": "2026-05-31",
+  "version": "2.2.0",
+  "updated_at": "2026-06-21",
   "templates": [
     {
       "id": "ppt-material",
@@ -224,6 +224,35 @@
       "has_sub_templates": true
     },
     {
+      "id": "social-screenshot",
+      "file": "social-screenshot.md",
+      "name": "社交截图/直播界面",
+      "keywords": [
+        "小红书截图",
+        "抖音截图",
+        "朋友圈截图",
+        "微博截图",
+        "聊天截图",
+        "社交截图",
+        "平台截图",
+        "直播界面",
+        "直播截图",
+        "带货直播",
+        "信息流",
+        "贴文",
+        "笔记截图",
+        "social screenshot",
+        "live streaming"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "2K",
+      "default_ratio": "9:16",
+      "priority": 39,
+      "pixelSize": "1152x2048",
+      "references_dir": "references/social-screenshot/",
+      "has_sub_templates": false
+    },
+    {
       "id": "poster",
       "file": "poster.md",
       "name": "海报/Banner",
@@ -268,6 +297,29 @@
       "has_sub_templates": true
     },
     {
+      "id": "science-poster",
+      "file": "science-poster.md",
+      "name": "Apple 风极简科普海报",
+      "keywords": [
+        "科普海报",
+        "物种介绍",
+        "知识卡片",
+        "动物科普",
+        "极简海报",
+        "Apple风",
+        "发布会风海报",
+        "科学海报",
+        "science poster"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "2K",
+      "default_ratio": "9:16",
+      "priority": 41,
+      "pixelSize": "1152x2048",
+      "references_dir": "references/science-poster/",
+      "has_sub_templates": false
+    },
+    {
       "id": "storyboard",
       "file": "storyboard.md",
       "name": "故事板/漫画分镜",
@@ -308,6 +360,29 @@
       "pixelSize": "2048x2048",
       "references_dir": "references/logo/",
       "has_sub_templates": true
+    },
+    {
+      "id": "brand-identity",
+      "file": "brand-identity.md",
+      "name": "品牌身份包/触点系统视觉板",
+      "keywords": [
+        "品牌身份",
+        "品牌视觉板",
+        "触点系统",
+        "VI应用",
+        "品牌提案",
+        "品牌系统",
+        "品牌手册",
+        "brand identity",
+        "brand system"
+      ],
+      "default_model": "gpt-image-2-vip",
+      "default_resolution": "4K",
+      "default_ratio": "16:9",
+      "priority": 46,
+      "pixelSize": "3840x2160",
+      "references_dir": "references/brand-identity/",
+      "has_sub_templates": false
     },
     {
       "id": "maps",
@@ -386,5 +461,5 @@
       "has_sub_templates": true
     }
   ],
-  "description": "16 个主模板（合并优化版），每个主模板含 references 子模板索引"
+  "description": "18 个主模板（合并优化版 + 吸收 awesome-gpt-image-2 工业级模板），部分主模板含 references 子模板索引"
 }

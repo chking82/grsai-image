@@ -74,3 +74,9 @@ Avoid: full body shot, busy background, distorted facial proportions, uncanny va
 - model: gpt-image-2-vip
 - imageSize: 2880x2880
 
+## ⚠️ 避坑指南
+
+- **加点瑕疵**：AI 画的人太完美反而像假人。加入"皮肤纹理（skin pores）"、"雀斑"、"轻微胶片颗粒（film grain）"，写实感瞬间拉满。
+- **用参数说话**：用 `f/1.4` 代替"浅景深"，用 `50mm`/`85mm` 代替"半身照"，大模型吃这套。
+- **拆解五官**：不要只写"很美的女孩"，拆解成"桃花眼、高鼻梁、野生眉"，模型不知道你的审美标准。
+- **避免恐怖谷**：写实肤质要自然，避免过度磨皮和塑料感；头像锁定裁剪范围（胸部以上），避免变成意外全身照。
