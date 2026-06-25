@@ -3,6 +3,8 @@ name: grsai-image
 description: GRS AI 图片生成技能 — 意图识别、模板匹配、需求收集、提示词审核、图片生成与交付
 homepage: https://grsai.ai/
 metadata:
+  openclaw:
+    primaryEnv: GRSAI_API_KEY
 ---
 
 # grsai-image — GRS AI 图片生成

@@ -19,6 +19,9 @@ fi
 BASE_URL="${GRSAI_BASE_URL:-https://grsai.dakka.com.cn}"
 BACKUP_URL="https://grsaiapi.com"
 API_KEY="${GRSAI_API_KEY:-}"
+# 剥掉从 .bashrc 提取时可能残留的首尾引号
+API_KEY="${API_KEY%\"}"
+API_KEY="${API_KEY#\"}"
 OUTPUT_DIR="${GRSAI_OUTPUT_DIR:-./output}"
 MAX_POLL=20
 POLL_INTERVAL=15
@@ -92,48 +95,20 @@ fi
 PROMPT_HASH=$(echo "${MODEL}|${PROMPT}|${ASPECT_RATIO}" | md5sum | cut -d' ' -f1)
 REGISTRY_FILE="$TASK_REGISTRY_DIR/${PROMPT_HASH}.json"
 
+# 新 API 为同步流式端点，无法事后按 task_id 重新拉取结果，
+# 因此去重改为「本地已下载文件复用」：记录上次成功的本地文件，命中且文件仍在则直接复用。
 if [ -f "$REGISTRY_FILE" ]; then
   REGISTRY_TIME=$(python3 -c "import json; d=json.load(open('$REGISTRY_FILE')); print(d.get('time', 0))" 2>/dev/null || echo 0)
-  REGISTRY_TASK_ID=$(python3 -c "import json; d=json.load(open('$REGISTRY_FILE')); print(d.get('task_id',''))" 2>/dev/null || echo "")
+  REGISTRY_OUTPUT=$(python3 -c "import json; d=json.load(open('$REGISTRY_FILE')); print(d.get('output',''))" 2>/dev/null || echo "")
   CURRENT_TIME=$(date +%s)
   AGE=$((CURRENT_TIME - REGISTRY_TIME))
-  
-  if [ "$AGE" -lt "$DEDUP_WINDOW" ] && [ -n "$REGISTRY_TASK_ID" ]; then
-    # 检查任务状态
-    CHECK_STATUS=$(curl -s -m 10 "$NODE/v1/api/result?id=$REGISTRY_TASK_ID" \
-      -H "Authorization: Bearer $API_KEY" 2>/dev/null || echo "")
-    
-    if [ -n "$CHECK_STATUS" ]; then
-      TASK_STATE=$(echo "$CHECK_STATUS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null || echo "unknown")
-      
-      if [ "$TASK_STATE" = "succeeded" ]; then
-        echo "✅ 发现相同 prompt 的历史任务（${AGE}s 前），直接复用结果"
-        STATUS="succeeded"
-        IMAGE_URL=$(echo "$CHECK_STATUS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',[{}])[0].get('url',''))")
-        # 跳到下载步骤
-        if [ -z "$OUTPUT_FILE" ]; then
-          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          MODEL_SHORT=$(echo "$MODEL" | sed 's/[^a-zA-Z0-9-]//g')
-          OUTPUT_FILE="$OUTPUT_DIR/${TIMESTAMP}_${MODEL_SHORT}.png"
-        fi
-        echo "📥 下载图片..."
-        curl -sL -m 60 "$IMAGE_URL" -o "$OUTPUT_FILE"
-        if [ $? -eq 0 ] && [ -f "$OUTPUT_FILE" ]; then
-          FILE_SIZE=$(ls -lh "$OUTPUT_FILE" | awk '{print $5}')
-          echo "✅ 已保存: $OUTPUT_FILE ($FILE_SIZE)"
-          echo "$OUTPUT_FILE"
-        else
-          echo "❌ 下载失败"
-          exit 1
-        fi
-        exit 0
-      elif [ "$TASK_STATE" = "running" ]; then
-        echo "⏳ 相同 prompt 正在生成中（Task: $REGISTRY_TASK_ID），开始轮询..."
-        TASK_ID="$REGISTRY_TASK_ID"
-        STATUS="running"
-        # 跳到轮询步骤
-      fi
-    fi
+
+  if [ "$AGE" -lt "$DEDUP_WINDOW" ] && [ -n "$REGISTRY_OUTPUT" ] && [ -f "$REGISTRY_OUTPUT" ]; then
+    echo "✅ 发现相同 prompt 的历史结果（${AGE}s 前），直接复用本地文件"
+    FILE_SIZE=$(ls -lh "$REGISTRY_OUTPUT" | awk '{print $5}')
+    echo "✅ 已保存: $REGISTRY_OUTPUT ($FILE_SIZE)"
+    echo "$REGISTRY_OUTPUT"
+    exit 0
   fi
 fi
 
@@ -157,40 +132,53 @@ if [ -n "$IMAGE" ]; then
   PAYLOAD="$PAYLOAD,\"images\":[\"$IMAGE\"]"
 fi
 PAYLOAD="$PAYLOAD$EXTRA_PARAMS"
-
-if [ "$ASYNC" = true ]; then
-  PAYLOAD="$PAYLOAD,\"replyType\":\"async\""
-else
-  PAYLOAD="$PAYLOAD,\"replyType\":\"json\""
-fi
 PAYLOAD="$PAYLOAD}"
 
-# ─── 提交任务 ───
+# ─── 提交任务（新版流式端点 /v1/draw/{model}）───
+# GRS AI 官方端点按模型族分路（SSE 流式），model 全名放 body。
+# 旧的 /v1/api/generate 提交+轮询已废弃。
+#   nano-banana 系列 → /v1/draw/nano-banana
+#   gpt-image / 其他  → /v1/draw/completions
+if [[ "$MODEL" == nano-banana* ]]; then
+  DRAW_ENDPOINT="/v1/draw/nano-banana"
+else
+  DRAW_ENDPOINT="/v1/draw/completions"
+fi
+
+# 流式读取：GRS AI 在终态（succeeded/failed）后会关连接，curl 自然退出。
 submit() {
   local url="$1"
-  # 生图慢，curl 超时 300s
-  curl -s -m 300 -X POST "$url/v1/api/generate" \
+  curl -s -m "$SYNC_TIMEOUT" -N -X POST "$url$DRAW_ENDPOINT" \
     -H "Authorization: Bearer $API_KEY" \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD"
 }
 
-echo "📤 提交任务到 $NODE"
+echo "📤 提交任务到 $NODE$DRAW_ENDPOINT（model=$MODEL）"
 RESULT=$(submit "$NODE") || true
 
-# 检查是否成功：需要返回非空且有 id/status
-has_id=false
-if [ -n "$RESULT" ]; then
-  has_id=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('yes' if d.get('id') or d.get('status') else 'no')" 2>/dev/null || echo "no")
+# 解析流式响应：取最后一个含 status 的 data 行
+parse_field() {
+  # $1=字段名，从 RESULT 的最后一行 JSON 取值（无匹配不报错）
+  echo "$RESULT" | grep -o '"'"$1"'":"[^"]*"' | tail -1 | sed 's/"'"$1"'":"//;s/"$//' || true
+}
+
+STATUS=$(parse_field status)
+
+# 检测非流式错误响应（如 {"code":-1,"msg":"不存在该模型"}）
+ERR_MSG=$(echo "$RESULT" | grep -o '"msg":"[^"]*"' | tail -1 | sed 's/"msg":"//;s/"$//' || true)
+if [ -z "$STATUS" ] && [ -n "$ERR_MSG" ]; then
+  echo "❌ API 错误: $ERR_MSG"
+  exit 1
 fi
 
-# 如果国内节点失败（空响应或无 id/status），尝试备用节点
-# ⚠️ 备用节点是独立的 API，会生成新图，所以国内节点超时/失败时不再回退
-if [ -z "$RESULT" ] || [ "$has_id" = "no" ]; then
+# 国内节点异常（空响应或无 status）→ 尝试备用节点
+# ⚠️ 备用节点是独立 API，会生成新图，仅在国内节点彻底失败时回退
+if [ -z "$RESULT" ] || [ -z "$STATUS" ]; then
   echo "⚠️ 国内节点返回异常，尝试备用节点..."
-  RESULT=$(submit "$BACKUP_URL") || true
   NODE="$BACKUP_URL"
-  # 备用节点成功后不再回退，避免重复生成
+  RESULT=$(submit "$NODE") || true
+  STATUS=$(parse_field status)
 fi
 
 if [ -z "$RESULT" ]; then
@@ -198,62 +186,19 @@ if [ -z "$RESULT" ]; then
   exit 1
 fi
 
-STATUS=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null)
+# 提取最终图片 URL（流式末尾 succeeded 行携带）
+IMAGE_URL=$(echo "$RESULT" | grep -o '"url":"[^"]*"' | tail -1 | sed 's/"url":"//;s/"$//' || true)
 
-# ─── 注册任务（记录 task_id 到本地） ───
-if [ "$STATUS" = "running" ]; then
-  TASK_ID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))")
-  echo '{"task_id":"'"$TASK_ID"'","time":'$(date +%s)',"model":"'"$MODEL"'","prompt_hash":"'"$PROMPT_HASH"'"}' > "$REGISTRY_FILE"
-fi
-
-# ─── 同步模式 ───
-if [ "$ASYNC" = false ] || [ "$STATUS" = "succeeded" ]; then
-  if [ "$STATUS" = "succeeded" ]; then
-    IMAGE_URL=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',[{}])[0].get('url',''))")
-    echo "✅ 生成成功"
-  else
-    echo "❌ 生成失败: $RESULT"
-    exit 1
-  fi
+if [ "$STATUS" = "succeeded" ] && [ -n "$IMAGE_URL" ]; then
+  echo "✅ 生成成功"
+elif [ "$STATUS" = "violation" ]; then
+  echo "❌ 触发安全策略，请修改 prompt"
+  exit 1
 else
-  # ─── 异步模式 ───
-  TASK_ID=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))")
-  
-  if [ -z "$TASK_ID" ]; then
-    echo "❌ 提交失败: $RESULT"
-    exit 1
-  fi
-  
-  echo "🆔 Task ID: $TASK_ID"
-  echo "⏳ 生成中，开始轮询..."
-  
-  for i in $(seq 1 $MAX_POLL); do
-    sleep $POLL_INTERVAL
-    CHECK=$(curl -s -m 10 "$NODE/v1/api/result?id=$TASK_ID" \
-      -H "Authorization: Bearer $API_KEY")
-    
-    STATUS=$(echo "$CHECK" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null)
-    PROGRESS=$(echo "$CHECK" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('progress',0))" 2>/dev/null || echo 0)
-    
-    echo "  [$i/$MAX_POLL] status=$STATUS progress=${PROGRESS}%"
-    
-    if [ "$STATUS" = "succeeded" ]; then
-      IMAGE_URL=$(echo "$CHECK" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('results',[{}])[0].get('url',''))")
-      echo "✅ 生成成功!"
-      break
-    elif [ "$STATUS" = "failed" ]; then
-      echo "❌ 生成失败: $CHECK"
-      exit 1
-    elif [ "$STATUS" = "violation" ]; then
-      echo "❌ 触发安全策略，请修改 prompt"
-      exit 1
-    fi
-  done
-  
-  if [ "$STATUS" != "succeeded" ]; then
-    echo "⏰ 超时（$MAX_POLL 次轮询后仍在生成中）"
-    exit 2
-  fi
+  FAIL_MSG=$(echo "$RESULT" | grep -o '"error":"[^"]*"' | tail -1 | sed 's/"error":"//;s/"$//' || true)
+  FAIL_REASON=$(echo "$RESULT" | grep -o '"failure_reason":"[^"]*"' | tail -1 | sed 's/"failure_reason":"//;s/"$//' || true)
+  echo "❌ 生成失败 (status=$STATUS reason=${FAIL_REASON} error=${FAIL_MSG})"
+  exit 1
 fi
 
 # ─── 下载图片 ───
@@ -275,6 +220,8 @@ curl -sL -m 60 "$IMAGE_URL" -o "$OUTPUT_FILE"
 if [ $? -eq 0 ] && [ -f "$OUTPUT_FILE" ]; then
   FILE_SIZE=$(ls -lh "$OUTPUT_FILE" | awk '{print $5}')
   echo "✅ 已保存: $OUTPUT_FILE ($FILE_SIZE)"
+  # 写去重注册表：记录本地输出路径，1h 内同 prompt 直接复用
+  echo '{"output":"'"$OUTPUT_FILE"'","time":'$(date +%s)',"model":"'"$MODEL"'","prompt_hash":"'"$PROMPT_HASH"'"}' > "$REGISTRY_FILE"
   echo "$OUTPUT_FILE"
 else
   echo "❌ 下载失败"
