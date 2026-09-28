@@ -1,6 +1,6 @@
 # grsai-image
 
-通过 [GRS AI API](https://grsai.ai/) 进行图片生成，支持 `nano-banana` 和 `gpt-image-2` 系列模型。内置 15 个专业模板，覆盖插画、海报、产品图、Logo、架构图等常见场景。
+通过 [GRS AI API](https://grsai.ai/) 进行图片生成，支持 `nano-banana` 和 `gpt-image-2 / 2.5` 系列模型（`gpt-image-2-vip` / `gpt-image-2.5` / `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst`）。内置 15 个专业模板，覆盖插画、海报、产品图、Logo、架构图等常见场景。
 
 ## 获取 API Key
 
@@ -21,7 +21,10 @@ source ~/.bashrc
 ./scripts/generate.sh -m gpt-image-2-vip -p "赛博朋克雨夜城市街景" -a 2048x2048
 
 # 异步生成（4K 或大图）
-./scripts/generate.sh -m gpt-image-2-vip -p "赛博朋克雨夜城市街景" -a 3840x2160 --async
+./scripts/generate.sh -m gpt-image-2.5-flare -p "赛博朋克雨夜城市街景" -a 3840x2160 --async
+
+# 极致质量（sunburst max）
+./scripts/generate.sh -m gpt-image-2.5-sunburst -p "赛博朋克雨夜城市街景" -a 3840x2160 --async
 
 # 参考图生图
 ./scripts/generate.sh -m gpt-image-2-vip -p "prompt" -a 2048x2048 --image url_or_base64
@@ -67,11 +70,13 @@ source ~/.bashrc
 
 ### 模型参数区别
 
-| 模型系列 | aspectRatio | imageSize | 说明 |
-|---------|-------------|-----------|------|
-| **nano-banana** | 比例 `"16:9"` | `1K`/`2K`/`4K` | 两个参数都需要 |
-| **gpt-image-2** | 比例或 1K 像素值 | 不需要 | 灵活 |
-| **gpt-image-2-vip** | 1-4K 像素值 | 不需要 | 推荐，质量最高 |
+| 模型系列 | aspectRatio | imageSize | quality | 说明 |
+|---------|-------------|-----------|---------|------|
+| **nano-banana** | 比例 `"16:9"` | `1K`/`2K`/`4K` | auto | 两个参数都需要 |
+| **gpt-image-2 / 2.5** | 比例或 1K 像素值 | 不需要 | auto | 灵活 |
+| **gpt-image-2-vip** | 1-4K 像素值 | 不需要 | medium | 推荐，质量最高 |
+| **gpt-image-2.5-flare** | 1-4K 像素值 | 不需要 | low / medium / high | 4K 真出图，中文稳 |
+| **gpt-image-2.5-sunburst** | 1-4K 像素值 | 不需要 | low / medium / high / xhigh / max | 极致质量，耗时长 |
 
 ```bash
 # 像素值转换（分辨率×比例 → gpt-image-2-vip 像素值）

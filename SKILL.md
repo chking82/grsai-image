@@ -176,10 +176,12 @@ PPT 配图、封面图、缩略图、社交媒体配图、文章配图。
 
 ### 参数推荐速查表
 
-| 参数 | nano-banana 系列 | gpt-image-2 | gpt-image-2-vip |
-|------|------------------|-------------|-----------------|
-| aspectRatio | 比例如 `"16:9"` | 比例或 1K 像素值 | **1-4K 像素值**如 `"2048x2048"` |
+| 参数 | nano-banana 系列 | gpt-image-2 / 2.5 | gpt-image-2-vip / 2.5-flare / 2.5-sunburst |
+|------|------------------|---------------------|------------------------------------------|
+| aspectRatio | 比例如 `"16:9"` | 比例或 1K 像素值 | **1-4K 像素值**如 `"3840x2160"` |
 | imageSize | `1K`/`2K`/`4K` | 不需要 | 不需要 |
+| quality | auto | 仅 `auto` | vip: `medium`；flare: `low`/`medium`/`high`；sunburst: `low`/`medium`/`high`/`xhigh`/`max` |
+| background | ❌ | ❌ | ✅ `transparent`（透明背景） |
 
 ### 分辨率 × 比例 → 像素值换算
 
@@ -303,20 +305,48 @@ PROMPT_FILE="./grsai-prompts/${TIMESTAMP}_${TEMPLATE_NAME}_${TOPIC_KEYWORD}.md"
 
 ## API 端点参考
 
+> **注意** — 旧 `/v1/api/generate`（submit + poll）已**弃用**。`generate.sh` 已迁移到新版流式 SSE 端点 `/v1/draw/{model_family}`，单次请求返回完整图片/结果。
+
+| 模型族 | 端点 |
+|------|------|
+| nano-banana 全系 | `POST {base}/v1/draw/nano-banana` |
+| gpt-image-2 / 2.5 全系 | `POST {base}/v1/draw/completions` |
+
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/v1/api/generate` | 生成图片 |
-| GET | `/v1/api/result?id={task_id}` | 查询异步结果 |
-| POST | `/v1/api/edit` | 图片编辑 |
+| POST | `/v1/draw/{model_family}` | 生成图片（SSE 流式返回） |
+| POST | `/v1/api/edit` | 图片编辑（传 `images` + `mask`） |
+| GET | `/v1/api/result?id={task_id}` | 异步结果查询（仅 `replyType=async` 时使用） |
+
+### 异步任务模式
+
+当 `replyType=async` 时，提交后返回 `task_id`，需要轮询 `/v1/api/result` 拿结果。`generate.sh` 默认用同步流式端点（无需轮询）。
+
+### 通用请求参数
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `model` | string | 模型名称（必填） |
+| `prompt` | string | 提示词（必填） |
+| `images` | string[] | 参考图 URL 或 base64（图生图，可选） |
+| `aspectRatio` | string | 比例如 `"16:9"` 或 1-4K 像素值如 `"3840x2160"` |
+| `quality` | string | 质量选项，依赖模型支持（见上表） |
+| `background` | string | 仅 vip/flare/sunburst 支持，传 `transparent` 出透明背景 |
+| `mask` | string | 编辑模式遮罩 URL，配合 images 使用 |
+| `replyType` | string | `json` / `stream` / `async`，默认 `json` |
 
 ### 支持的模型
 
 **nano-banana 系列：** `nano-banana`, `nano-banana-fast`, `nano-banana-2`, `nano-banana-2-cl`, `nano-banana-pro`, `nano-banana-pro-vip`
 - 参数：`aspectRatio`（比例）+ `imageSize`（1K/2K/4K）
 
-**gpt-image-2 系列：** `gpt-image-2`, `gpt-image-2-vip`
-- `gpt-image-2`：`aspectRatio` 可传比例或 1K 像素值
-- `gpt-image-2-vip`：`aspectRatio` 传 1-4K 像素值，不支持比例，不需要 `imageSize`
+**gpt-image-2 / 2.5 系列：** `gpt-image-2`, `gpt-image-2-vip`, `gpt-image-2.5`, `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst`
+- `gpt-image-2` / `gpt-image-2.5`：`aspectRatio` 可传比例或 1K 像素值；`quality` 仅 `auto`
+- `gpt-image-2-vip` / `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst`：`aspectRatio` 传 1-4K 像素值（不支持比例）；`background=transparent` 仅这 3 个支持
+- quality 矩阵：
+  - `gpt-image-2-vip`：仅 `medium`
+  - `gpt-image-2.5-flare`：`low` / `medium` / `high`
+  - `gpt-image-2.5-sunburst`：`low` / `medium` / `high` / `xhigh` / `max`
 
 ---
 
@@ -365,7 +395,10 @@ templates/
 3. **参考图是好帮手** — 有参考图时用图生图
 4. **4K 需要耐心** — 异步模式，预计 2-3 分钟
 5. **审核不可跳过** — 必须让用户确认 prompt 和参数
-6. **中文文字** — gpt-image-2-vip 对中文渲染支持良好，prompt 直接包含中文
+6. **中文文字** — gpt-image-2-vip / gpt-image-2.5-flare 对中文渲染支持良好（实测中文渲染 OK），prompt 直接包含中文
+7. **透明背景** — 仅 `gpt-image-2-vip` / `gpt-image-2.5-flare` / `gpt-image-2.5-sunburst` 支持 `background=transparent`，其他模型传参会被忽略
+8. **质量档选择** — 一般中文架构图/海报用 `medium` 够用；`high`/`xhigh`/`max` 增加细节但耗时明显变长
+9. **模型选择策略** — 架构图/海报优先 `gpt-image-2.5-flare`（4K + high + 中文稳）；极致质量选 `gpt-image-2.5-sunburst`（max）；快速迭代用 `nano-banana-2`
 
 ---
 
